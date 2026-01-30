@@ -1,0 +1,16 @@
+# VT-MOT Dataset Configuration for YOLO
+# Path relative to project root or absolute
+
+path: /home/student/Toan/data/VT-MOT
+train: images/train
+val: images/val
+test: images/test
+
+# Classes
+nc: 2
+names:
+  0: person
+  1: vehicle
+
+# Note: This config assumes VT-MOT dataset structure
+# If structure differs after extraction, update paths accordingly

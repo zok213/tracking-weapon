@@ -1,0 +1,115 @@
+# VT-MOT Project - Git Ignore File
+# Optimized for ML/DL projects
+
+# ============================================
+# DATA & LARGE FILES
+# ============================================
+data/
+*.zip
+*.tar.gz
+*.tar
+*.rar
+*.7z
+
+# Model checkpoints (large binary files)
+checkpoints/
+*.pt
+*.pth
+*.onnx
+*.dlc
+*.hef
+*.engine
+*.trt
+
+# Training runs and experiments
+runs/
+wandb/
+mlruns/
+tensorboard/
+
+# ============================================
+# PYTHON
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# ============================================
+# IDE & EDITORS
+# ============================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.spyderproject
+.spyproject
+.ropeproject
+
+# ============================================
+# OS SPECIFIC
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.log
+
+# ============================================
+# JUPYTER
+# ============================================
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ============================================
+# LOGS & TEMP
+# ============================================
+logs/
+*.log
+tmp/
+temp/
+*.tmp
+
+# ============================================
+# KEEP THESE (use .gitkeep in empty dirs)
+# ============================================
+# !configs/
+# !scripts/
+# !docs/
+# !code/
+
+# ============================================
+# EXCEPTIONS - TRACK THESE
+# ============================================
+!configs/*.yaml
+!configs/*.yml
+!scripts/*.py
+!scripts/*.sh
+!docs/*.md
+!docs/**/*.md

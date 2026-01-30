@@ -1,0 +1,15 @@
+# KUST4K Dataset Configuration for YOLO
+# RGBT pretraining dataset
+
+path: /home/student/Toan/data/KUST4K
+train: images/train
+val: images/val
+test: images/test
+
+# Classes (KUST4K has 8 classes, we map to 2 for VT-MOT compatibility)
+nc: 2
+names:
+  0: person
+  1: vehicle
+
+# Note: Original KUST4K has more classes, filtered for tracking task

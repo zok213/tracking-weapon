@@ -124,7 +124,9 @@ class RGBTDatasetCreator:
             for rgb_path, tir_path in tqdm(split_pairs, desc=split_name):
                 stats['total'] += 1
                 
-                out_name = f"{rgb_path.stem}.npy"
+                # Fix filename collision: include sequence name
+                seq_name = rgb_path.parent.parent.name
+                out_name = f"{seq_name}_{rgb_path.stem}.npy"
                 out_path = out_dir / out_name
                 
                 if self.create_4channel_image(rgb_path, tir_path, out_path):
@@ -138,7 +140,7 @@ class RGBTDatasetCreator:
                     if label_src.exists():
                         label_dst = self.output_root / 'labels' / split_name
                         label_dst.mkdir(parents=True, exist_ok=True)
-                        shutil.copy(label_src, label_dst / f"{rgb_path.stem}.txt")
+                        shutil.copy(label_src, label_dst / f"{seq_name}_{rgb_path.stem}.txt")
         
         print(f"\n✅ Created {stats['success']}/{stats['total']} 4-channel images")
         

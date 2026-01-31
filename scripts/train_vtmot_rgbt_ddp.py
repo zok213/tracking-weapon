@@ -189,7 +189,7 @@ def main():
         print("="*60, flush=True)
     
     epochs = 50
-    batch_size = 8 # Increased from 4 for RTX 4090
+    batch_size = 12 # Increased from 8 to 12 (Total 24) for max utilization
     
     train_img = "/home/student/Toan/data/VT-MOT_RGBT/images/train"
     train_lbl = "/home/student/Toan/data/VT-MOT_RGBT/labels/train"
@@ -236,12 +236,6 @@ def main():
         'mosaic': 1.0, 'mixup': 0.0, 'copy_paste': 0.0, 'warmup_epochs': 3.0,
         'warmup_momentum': 0.8, 'warmup_bias_lr': 0.1,
     }
-    # Hack: DDP wraps model, so args must be set on the inner module or DDP wrapper handles it?
-    # v8DetectionLoss needs 'model.args' or 'model.module.args'? 
-    # v8DetectionLoss(model) -> uses model.args if available.
-    # We pass model_ddp to loss? No, loss doesn't need DDP wrap usually.
-    # Actually v8DetectionLoss takes 'model' to get strides/anchors.
-    
     model_ddp.module.args = IterableSimpleNamespace(**hyp)
     loss_fn = v8DetectionLoss(model_ddp.module)
     
@@ -250,10 +244,42 @@ def main():
     save_dir = Path("/home/student/Toan/checkpoints/rgbt_vtmot_ddp")
     if rank == 0:
         save_dir.mkdir(parents=True, exist_ok=True)
-        
+    
+    # RESUME LOGIC
+    start_epoch = 0
     best_val_loss = float('inf')
     
-    for epoch in range(epochs):
+    # Check for latest epoch
+    latest_epoch = 0
+    latest_ckpt = None
+    if save_dir.exists():
+        for p in save_dir.glob("epoch*.pt"):
+            try:
+                # epoch25.pt -> 25
+                ep = int(p.stem.replace("epoch", ""))
+                if ep > latest_epoch:
+                    latest_epoch = ep
+                    latest_ckpt = p
+            except: pass
+            
+    if latest_ckpt:
+        if rank == 0: print(f"🔄 Resuming from {latest_ckpt} (Epoch {latest_epoch})", flush=True)
+        # Load weights
+        state_dict = torch.load(latest_ckpt, map_location=device)
+        model_ddp.module.load_state_dict(state_dict)
+        start_epoch = latest_epoch # Start from next? No, if we saved epoch 25, we finished epoch 25.
+        # So we should start from range(start_epoch, epochs) where start_epoch=25 means 0..24 are done.
+        # Loop is range(epochs) -> 0,1,2...24, 25.
+        # If we finished 25 (0-indexed logic?), let's assume saved "epoch25" means 25 epochs finished.
+        # So next is epoch index 25 (which is 26th epoch).
+        
+        # NOTE: My save logic was: f"epoch{epoch+1}.pt"
+        # So if epoch loop index was 24, we saved "epoch25.pt".
+        # So we have finished 25 epochs.
+        # Next loop index should be 25.
+        pass
+        
+    for epoch in range(start_epoch, epochs):
         sampler_train.set_epoch(epoch) # Critical for shuffling
         
         train_loss = train_epoch(model_ddp, loader_train, optimizer, device, loss_fn, rank)

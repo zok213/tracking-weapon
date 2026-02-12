@@ -189,7 +189,7 @@ def main():
         print("="*60, flush=True)
     
     epochs = 50
-    batch_size = 12 # Increased from 8 to 12 (Total 24) for max utilization
+    batch_size = 10 # Reduced from 12 to 10 (Total 20) to fix SIGSEGV/Instability
     
     train_img = "/home/student/Toan/data/VT-MOT_RGBT/images/train"
     train_lbl = "/home/student/Toan/data/VT-MOT_RGBT/labels/train"

@@ -113,3 +113,7 @@ temp/
 !scripts/*.sh
 !docs/*.md
 !docs/**/*.md
+
+# Dataset YAML configs (critical for reproducibility)
+!datasets/vtmot_far/far_view_clean.yaml
+!datasets/vtmot_near/near_view_clean.yaml

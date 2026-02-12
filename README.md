@@ -1,57 +1,61 @@
-# VT-MOT: Vision-Thermal Multi-Object Tracking
+# VT-MOT Tracking Weapon 🎯
 
-Multi-modal object tracking system for Qualcomm QCS8550 edge deployment.
+RGBT Multi-Object Tracking with Gated Mid-Fusion for Deployment.
 
-## Quick Start
+## Quick Start (After Clone)
 
 ```bash
-# Clone
-git clone https://github.com/YOUR_USERNAME/VT-MOT.git
-cd VT-MOT
+# 1. Install dependencies
+pip install -e ./YOLOv11-RGBT
 
-# Download datasets (manual - Google Drive)
-# See data/README.md for links
+# 2. Download dataset from Kaggle
+# Upload vtmot_far_*.zip parts, then extract:
+# unzip vtmot_far_train_part1.zip -d datasets/vtmot_far/
+# unzip vtmot_far_train_part2.zip -d datasets/vtmot_far/
+# ... etc
 
-# Train teacher model
-python -c "
-from ultralytics import YOLO
-model = YOLO('yolo26x.pt')
-model.train(data='configs/data_kust4k.yaml', epochs=100, batch=16, device=0)
-"
+# 3. Download weights (from original machine backup)
+# Place in weights/ directory
+
+# 4. Train far-view model
+python3 train_far_model_gated.py
 ```
 
 ## Project Structure
 
 ```
-├── configs/         # YOLO dataset configs
-├── scripts/         # Training & utility scripts
-├── docs/            # Architecture documentation
-├── data/            # Datasets (gitignored)
-├── checkpoints/     # Model weights (gitignored)
-└── logs/            # Training logs (gitignored)
+├── train_far_model_gated.py    # 🎯 MAIN: Far-view deployment training
+├── train_near_model_gated.py   # Near-view gated fusion experiment
+├── gate_supervision.py         # Gate supervision loss module
+├── visualize_gates.py          # Gate weight visualization
+├── mcf_utils.py                # MCF utility functions
+├── YOLOv11-RGBT/               # Modified Ultralytics with GatedSpatialFusion_V3
+│   └── ultralytics/
+│       └── nn/modules/block.py # ⭐ GatedSpatialFusion_V3 implementation
+├── datasets/
+│   ├── vtmot_far/far_view_clean.yaml  # Far-view dataset config
+│   └── vtmot_near/near_view_clean.yaml
+├── weights/                    # Pretrained weights (not in git, >100MB)
+├── docs/                       # Architecture docs, analysis, walkthroughs
+└── scripts/                    # Utility scripts
 ```
 
-## Key Components
+## Key Architecture
 
-1. **Detection**: YOLO26x → YOLO11m (Knowledge Distillation)
-2. **Tracking**: ByteTrack with VI-ReID
-3. **Fusion**: RGB + Thermal (CBAM at P3)
-4. **Target**: Qualcomm QCS8550 (≤20.5ms latency)
+**Gated Spatial Fusion V3** — Custom RGBT fusion layer:
 
-## Datasets
+- Dual-branch attention (RGB + Thermal)
+- MC-Dropout uncertainty estimation
+- Learnable illumination scaling
+- Gate supervision loss for convergence
 
-| Dataset | Size | Altitude | Purpose |
-|:--------|:-----|:---------|:--------|
-| KUST4K | 4K images | 30-60m | Pretraining |
-| VT-MOT | 166K images | Mixed | Main training |
+## Training Strategy
 
-## Documentation
+1. **Near-view warmup** → best.pt (mAP50=0.635)
+2. **Far-view fine-tune** → Transfer Learning V2 (near→far domain adaptation)
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Dataflow](docs/DATAFLOW.md)
-- [QCS8550 Guide](docs/qualcomm/QCS8550_SUMMARY.md)
-- [Training Guide](docs/qualcomm/TRAINING_GUIDE.md)
+## Dataset
 
-## License
-
-MIT
+- **vtmot_far**: 284k images (Train 74%, Val 16%, Test 11%)
+- Sources: VTuav, wurenji, qiuxing, RGBT234, photo sequences
+- Single class: person (far-view detection)

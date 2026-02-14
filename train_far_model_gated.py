@@ -86,16 +86,17 @@ def train():
     # CONFIGURATION
     # ========================================
     
-    # Device: Use GPU 1 (free) or fallback
-    device = 1 if torch.cuda.is_available() and torch.cuda.device_count() > 1 else 0
+    # Device: GPU 0 (primary RTX 4090, 24GB)
+    device = 0
     print(f"Using device: {device} (FAR-VIEW DEPLOYMENT TRAINING)")
     
     # Dataset: Far-view (cleaned, with test split)
     dataset_yaml = project_root / "datasets/vtmot_far/far_view_clean.yaml"
     print(f"Dataset: {dataset_yaml}")
     
-    # Cache mode
-    cache_mode = 'disk'
+    # Cache: RAM for ~2x speed (31GB images fit in 125GB system RAM)
+    # RAM cache loads all images into memory at startup → eliminates disk I/O
+    cache_mode = 'ram'
     
     # Project structure
     experiment_name = 'far_gated_deployment'
@@ -168,7 +169,7 @@ def train():
         'data': str(dataset_yaml),
         'epochs': 30,
         'imgsz': 640,
-        'batch': 16,
+        'batch': 24,           # RTX 4090 24GB + AMP → batch 24 is optimal for XL @ 640
         'device': device,
         'use_simotm': 'RGBRGB6C',
         'channels': 6,
@@ -181,13 +182,13 @@ def train():
         'weight_decay': 0.0005,
         'warmup_epochs': 2,
         'warmup_bias_lr': 0.05,
+        'amp': True,           # Mixed precision (FP16) — 2x memory efficiency on 4090
         # Strong augmentations for FAR-VIEW (small targets)
         'mosaic': 1.0,
         'mixup': 0.15,
         'copy_paste': 0.1,
         'scale': 0.7,          # Aggressive scale for small-object robustness
         'close_mosaic': 10,    # Disable mosaic last 10 epochs for clean convergence
-        'label_smoothing': 0.1,
         # Training params
         'patience': 15,        # Early stopping
         'save_period': 5,      # Save checkpoint every 5 epochs
@@ -195,20 +196,24 @@ def train():
         'project': str(project_dir),
         'name': run_name,
         'exist_ok': True,
-        'cache': cache_mode,
-        'workers': 8,
+        'cache': cache_mode,   # 'ram' — loads 31GB images into 125GB system RAM
+        'workers': 16,         # 32 CPUs available → use 16 for data loading
         'resume': resume_flag,
     }
     
     print("\n" + "=" * 70)
     print("FAR-VIEW GATED MID-FUSION — DEPLOYMENT TRAINING")
     print("=" * 70)
-    print(f"  Device:     GPU {device}")
+    print(f"  Device:     GPU {device} (RTX 4090 24GB)")
     print(f"  Dataset:    {dataset_yaml}")
+    print(f"  Images:     ~295k (train 209k, val 44k, test 41k)")
     print(f"  Epochs:     {config['epochs']}")
     print(f"  Batch:      {config['batch']}")
-    print(f"  Optimizer:  {config['optimizer']} (lr={config['lr0']}, cosine)")
-    print(f"  Augments:   Mosaic + MixUp + CopyPaste + Scale(0.7)")
+    print(f"  Cache:      {config['cache']} (31GB → system RAM)")
+    print(f"  Workers:    {config['workers']} / {os.cpu_count()} CPUs")
+    print(f"  AMP:        {config.get('amp', False)} (mixed precision)")
+    print(f"  Optimizer:  {config['optimizer']} (lr={config['lr0']}, cosine→{config['lrf']})")
+    print(f"  Augments:   Mosaic + MixUp(0.15) + CopyPaste(0.1) + Scale(0.7)")
     print(f"  Output:     {project_dir / run_name}")
     print("=" * 70 + "\n")
     

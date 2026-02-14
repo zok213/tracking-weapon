@@ -1712,21 +1712,17 @@ class GatedSpatialFusion_V3(nn.Module):
         # Storage for Gate Supervision
         self.last_gate_weights = None
 
-    def estimate_uncertainty(self, feat, dropout, n_samples=20): 
-        """MC-Dropout uncertainty estimation (approximated)"""
-        # Bug #2 Fix: ALWAYS enable dropout for MC-Dropout, even in eval mode
-        training_state = self.training
-        self.train() 
+    def estimate_uncertainty(self, feat, dropout, n_samples=1): 
+        """Lightweight single-pass uncertainty estimation.
         
-        preds = []
-        for _ in range(n_samples): # Bug #1 Fix: Increase samples to 20
-             d_out = dropout(feat)
-             preds.append(d_out.mean(dim=(2,3))) # Global pool for speed
-        
-        self.train(training_state) # Restore state
-        
-        preds = torch.stack(preds) # (n_samples, B, C)
-        uncertainty = torch.var(preds, dim=0).mean(dim=1) # (B,)
+        Replaces expensive 20-sample MC-Dropout (which caused RuntimeError with
+        leaf Variable views and 120 extra passes per batch) with a single
+        dropout pass. Measures deviation as uncertainty proxy.
+        """
+        # Single dropout pass - no self.train() hack needed
+        d_out = dropout(feat)
+        # Deviation between original and dropped-out features as uncertainty proxy
+        uncertainty = (feat - d_out).abs().mean(dim=(1, 2, 3))  # (B,)
         return uncertainty
 
     def forward(self, x, rgb_image=None):
@@ -1748,8 +1744,8 @@ class GatedSpatialFusion_V3(nn.Module):
                  if torch.rand(1).item() < 0.5: drop_rgb = False
                  else: drop_ir = False
             
-            if drop_rgb: rgb_part = self.E_rgb.expand(B, C, H, W)
-            if drop_ir: ir_part = self.E_ir.expand(B, C, H, W)
+            if drop_rgb: rgb_part = self.E_rgb.expand(B, C, H, W).clone()
+            if drop_ir: ir_part = self.E_ir.expand(B, C, H, W).clone()
 
         # Uncertainty Estimation
         rgb_unc = self.estimate_uncertainty(rgb_part, self.rgb_dropout)

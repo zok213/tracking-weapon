@@ -1602,9 +1602,11 @@ class GatedSpatialFusion(nn.Module):
             rgb_image: Original RGB image (B, 3, H_img, W_img) - Optional
         """
         if isinstance(x, list):
-            rgb_part, ir_part = x[0], x[1]
+            rgb_part, ir_part = x[0].clone(), x[1].clone()
         else:
             rgb_part, ir_part = x.chunk(2, dim=1)
+            rgb_part = rgb_part.clone()
+            ir_part = ir_part.clone()
         
         # FIX #3: Aggressive Stochastic Modality Dropout (Training Only)
         if self.training and self.dropout_prob > 0:
@@ -1728,9 +1730,11 @@ class GatedSpatialFusion_V3(nn.Module):
     def forward(self, x, rgb_image=None):
         # Handle list vs tensor
         if isinstance(x, list):
-            rgb_part, ir_part = x[0], x[1]
+            rgb_part, ir_part = x[0].clone(), x[1].clone()
         else:
             rgb_part, ir_part = x.chunk(2, dim=1)
+            rgb_part = rgb_part.clone()
+            ir_part = ir_part.clone()
             
         B, C, H, W = rgb_part.shape
         

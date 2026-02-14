@@ -75,6 +75,31 @@ class BaseDataset(Dataset):
         self.prefix = prefix
         self.fraction = fraction
         self.im_files = self.get_img_files(self.img_path)
+        self.pairs_rgb_ir=pairs_rgb_ir
+        # If self.pairs_rgb_ir is not a list of characters with a length of 2, then reset it to the default value.
+        if not (isinstance(self.pairs_rgb_ir, list) and
+                len(self.pairs_rgb_ir) == 2 and
+                all(isinstance(x, str) for x in self.pairs_rgb_ir)):
+            self.pairs_rgb_ir = ['visible', 'infrared']
+
+        # Filter out images with missing IR pairs (prevents training crashes)
+        if use_simotm in ('RGBT', 'RGBRGB6C'):
+            pairs_rgb, pairs_ir = self.pairs_rgb_ir
+            valid_files = []
+            skipped = 0
+            for f in self.im_files:
+                ir_path = f.replace(pairs_rgb, pairs_ir)
+                if os.path.exists(ir_path):
+                    valid_files.append(f)
+                else:
+                    skipped += 1
+            if skipped > 0:
+                LOGGER.warning(
+                    f"{prefix}Skipped {skipped} images with missing IR pairs "
+                    f"('{pairs_rgb}' → '{pairs_ir}'). {len(valid_files)} valid pairs remain."
+                )
+            self.im_files = valid_files
+
         self.labels = self.get_labels()
         self.update_labels(include_class=classes)  # single_cls and include_class
         self.ni = len(self.labels)  # number of images
@@ -85,14 +110,6 @@ class BaseDataset(Dataset):
         if self.rect:
             assert self.batch_size is not None
             self.set_rectangle()
-
-        self.pairs_rgb_ir=pairs_rgb_ir
-        # 若 self.pairs_rgb_ir 不是长度为 2 的字符列表，则重置为默认值
-        # If self.pairs_rgb_ir is not a list of characters with a length of 2, then reset it to the default value.
-        if not (isinstance(self.pairs_rgb_ir, list) and
-                len(self.pairs_rgb_ir) == 2 and
-                all(isinstance(x, str) for x in self.pairs_rgb_ir)):
-            self.pairs_rgb_ir = ['visible', 'infrared']
 
         # Buffer thread for mosaic images
         self.buffer = []  # buffer size = batch size
@@ -201,19 +218,31 @@ class BaseDataset(Dataset):
             im = SimOTMSSS(im)
         elif use_simotm == 'RGBT':
             im_visible = imread(file_path)  # BGR
-            im_infrared = imread(file_path.replace(pairs_rgb, pairs_ir), cv2.IMREAD_GRAYSCALE)  # GRAY
+            if im_visible is None:
+                raise FileNotFoundError(f"Visible image not found: {file_path}")
+            ir_path = file_path.replace(pairs_rgb, pairs_ir)
+            im_infrared = imread(ir_path, cv2.IMREAD_GRAYSCALE)  # GRAY
 
-            if im_visible is None or im_infrared is None:
-                raise FileNotFoundError(f"Image Not Found {file_path}")
+            if im_infrared is None:
+                raise FileNotFoundError(
+                    f"IR pair not found: {ir_path} (from {file_path}). "
+                    f"Run with fresh cache to auto-filter missing pairs."
+                )
 
             im_visible, im_infrared = self._resize_images(im_visible, im_infrared)
             im = self._merge_channels(im_visible, im_infrared)
         elif use_simotm == 'RGBRGB6C':
             im_visible = imread(file_path)  # BGR
-            im_infrared = imread(file_path.replace(pairs_rgb, pairs_ir))  # BGR
+            if im_visible is None:
+                raise FileNotFoundError(f"Visible image not found: {file_path}")
+            ir_path = file_path.replace(pairs_rgb, pairs_ir)
+            im_infrared = imread(ir_path)  # BGR
 
-            if im_visible is None or im_infrared is None:
-                raise FileNotFoundError(f"Image Not Found {file_path}")
+            if im_infrared is None:
+                raise FileNotFoundError(
+                    f"IR pair not found: {ir_path} (from {file_path}). "
+                    f"Run with fresh cache to auto-filter missing pairs."
+                )
 
             im_visible, im_infrared = self._resize_images(im_visible, im_infrared)
             im = self._merge_channels_rgb(im_visible, im_infrared)

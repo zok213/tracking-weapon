@@ -22,6 +22,9 @@ class GatedDetectionLoss(nn.Module):
         self.bce = nn.BCEWithLogitsLoss(reduction='none')
         
     def __getattr__(self, name):
+        # Guard: prevent infinite recursion during __init__ or deepcopy
+        if name in ('original_loss', 'model', 'bce', '_modules', '_parameters', '_buffers'):
+            raise AttributeError(name)
         # Proxy attribute access to original loss (e.g., hyperparams, dfl, etc.)
         return getattr(self.original_loss, name)
         

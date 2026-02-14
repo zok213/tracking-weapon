@@ -1786,7 +1786,7 @@ class GatedSpatialFusion_V3(nn.Module):
         # Store for Supervision/Viz (only if requested)
         # CRITICAL: Must be cleared before EMA update to avoid deepcopy crash!
         if getattr(self, 'export_gates', False):
-             self.active_gate_weights = torch.cat([gate_rgb, gate_ir], dim=1)
+             self.active_gate_weights = torch.cat([gate_rgb, gate_ir], dim=1).detach()
         else:
              self.active_gate_weights = None
         
